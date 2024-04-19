@@ -1,4 +1,8 @@
-//v1
+/*
+Name: Aum Patel
+Description: This Code implements basic integration for TSC2007 User space
+Version 1.0
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
