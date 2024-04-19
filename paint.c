@@ -9,7 +9,11 @@
 // Define I2C address of the TSC2007-Q1 device
 #define TSC2007_ADDRESS 0x48
 
-// Function to read X and Y coordinates from the TSC2007-Q1
+// Define screen dimensions
+#define SCREEN_WIDTH 1000  // Width of the screen
+#define SCREEN_HEIGHT 1000 // Height of the screen
+
+// Read X and Y coordinates from the TSC2007-Q1
 void readCoordinates(int file, uint8_t command, int *value) {
     uint8_t data[2];
 
@@ -25,14 +29,23 @@ void readCoordinates(int file, uint8_t command, int *value) {
         exit(1);
     }
 
-    // Form 12-bit value
+    // Create the 12-bit value
     *value = (data[0] << 8) | data[1];
+}
+
+// Map touch coordinates to Cartesian plane
+void mapCoordinates(int x_plus, int y_plus, int *mapped_x, int *mapped_y) {
+    // Calculate mapped X, Y coordinate
+    *mapped_x = (x_plus * SCREEN_WIDTH) / 4096;
+
+
+    *mapped_y = (y_plus * SCREEN_HEIGHT) / 4096;
 }
 
 int main() {
     char *device = "/dev/i2c-5";
     int file;
-    int x, y;
+    int x_plus, y_plus;
 
     // Open the I2C bus
     if ((file = open(device, O_RDWR)) < 0) {
@@ -47,18 +60,21 @@ int main() {
     }
 
     while(1) {
-        // Read X coordinate
-        readCoordinates(file, 0b11001000, &x); // Address for reading X coordinate
+        // Read X+ coordinate
+        readCoordinates(file, 0b11001000, &x_plus); // Address for reading X+ coordinate
 
-        // Read Y coordinate
-        readCoordinates(file, 0b11001001, &y); // Address for reading Y coordinate
+        // Read Y+ coordinate
+        readCoordinates(file, 0b11001001, &y_plus); // Address for reading Y+ coordinate
 
-       
-        int x_percent = (x * 100) / 4096; 
-        int y_percent = (y * 100) / 4096; 
+        // Map touch coordinates to Cartesian plane
+        int mapped_x, mapped_y;
+        mapCoordinates(x_plus, y_plus, &mapped_x, &mapped_y);
 
-        // Print the coordinates without the % symbol
-        printf("Touch position: X=%d, Y=%d\n", x_percent, y_percent);
+
+        mapped_y = SCREEN_HEIGHT - mapped_y;
+
+        // Print the mapped coordinates
+        printf("Mapped Touch position: X=%d, Y=%d\n", mapped_x, mapped_y);
 
 
         usleep(100000); 
