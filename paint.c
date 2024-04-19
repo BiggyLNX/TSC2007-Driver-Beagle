@@ -33,14 +33,14 @@ void readCoordinates(int file, uint8_t command, int *value) {
     *value = (data[0] << 8) | data[1];
 }
 
-// Map touch coordinates to Cartesian plane
 void mapCoordinates(int x_plus, int y_plus, int *mapped_x, int *mapped_y) {
-    // Calculate mapped X, Y coordinate
-    *mapped_x = (x_plus * SCREEN_WIDTH) / 4096;
+    // Calculate mapped X coordinate
+    *mapped_x = (x_plus * SCREEN_WIDTH) / 4095; // Adjusted denominator to 4095
 
-
-    *mapped_y = (y_plus * SCREEN_HEIGHT) / 4096;
+    // Calculate mapped Y coordinate
+    *mapped_y = SCREEN_HEIGHT - ((y_plus * SCREEN_HEIGHT) / 4095); // Adjusted denominator to 4095 and inverted Y axis
 }
+
 
 int main() {
     char *device = "/dev/i2c-5";
