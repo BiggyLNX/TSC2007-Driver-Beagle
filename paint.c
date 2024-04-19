@@ -1,53 +1,70 @@
-//v2
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
-#include <fcntl.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <sys/ioctl.h>
 #include <linux/i2c-dev.h>
-#include <stdint.h>
 
-#define I2C_DEVICE "/dev/i2c-5"
-#define TSC2007_ADDR 0x48
+// Define I2C address of the TSC2007-Q1 device
+#define TSC2007_ADDRESS 0x48
 
-typedef struct {
-    int16_t x;
-    int16_t y;
-    int16_t z1;
-    int16_t z2;
-} TS_Point;
+// Function to read X and Y coordinates from the TSC2007-Q1
+void readCoordinates(int file, uint8_t command, int *value) {
+    uint8_t data[2];
+
+    // Write command byte to specify the operation
+    if (write(file, &command, 1) != 1) {
+        perror("Write failed");
+        exit(1);
+    }
+
+    // Read 2 bytes of data
+    if (read(file, data, 2) != 2) {
+        perror("Read failed");
+        exit(1);
+    }
+
+    // Form 12-bit value
+    *value = (data[0] << 8) | data[1];
+}
 
 int main() {
-    int i2c_fd = open(I2C_DEVICE, O_RDWR);
-    if (i2c_fd < 0) {
-        perror("Failed to open the I2C bus");
-        return EXIT_FAILURE;
+    char *device = "/dev/i2c-5";
+    int file;
+    int x, y;
+
+    // Open the I2C bus
+    if ((file = open(device, O_RDWR)) < 0) {
+        perror("Failed to open the bus.");
+        exit(1);
     }
 
-    if (ioctl(i2c_fd, I2C_SLAVE, TSC2007_ADDR) < 0) {
-        perror("Failed to set I2C address");
-        return EXIT_FAILURE;
+    // Set the I2C slave address
+    if (ioctl(file, I2C_SLAVE, TSC2007_ADDRESS) < 0) {
+        perror("Failed to acquire bus access and/or talk to slave.");
+        exit(1);
     }
 
-    while (1) {
-        uint8_t buf[8];
-        if (read(i2c_fd, buf, sizeof(buf)) != sizeof(buf)) {
-            perror("Error reading from I2C bus");
-            return EXIT_FAILURE;
-        }
+    while(1) {
+        // Read X coordinate
+        readCoordinates(file, 0b11001000, &x); // Address for reading X coordinate
 
-        int16_t x = (buf[0] << 8) | buf[1];
-        int16_t y = (buf[2] << 8) | buf[3];
-        int16_t z1 = (buf[4] << 8) | buf[5];
-        int16_t z2 = (buf[6] << 8) | buf[7];
+        // Read Y coordinate
+        readCoordinates(file, 0b11001001, &y); // Address for reading Y coordinate
 
-        if (z1 > 0 && z2 > 0) { // Check if touch detected
-            printf("Touch point: (X: %d, Y: %d, Z1: %d, Z2: %d)\n", x, y, z1, z2);
-        }
+       
+        int x_percent = (x * 100) / 4096; 
+        int y_percent = (y * 100) / 4096; 
 
-        usleep(10000); // Short delay before next read
+        // Print the coordinates without the % symbol
+        printf("Touch position: X=%d, Y=%d\n", x_percent, y_percent);
+
+
+        usleep(100000); 
     }
 
-    close(i2c_fd);
-    return EXIT_SUCCESS;
+    close(file);
+
+    return 0;
 }
